@@ -428,12 +428,6 @@ class HubSpotTool extends Tool {
             ...(data.quantity && { quantity: data.quantity }),
             ...(data.price && { price: data.price }),
             ...(data.name && { name: data.name }),
-            ...(data.discount && { discount: data.discount }),
-            ...(data.tax && { tax: data.tax }),
-            ...(data.recurringBillingFrequency && { 
-              hs_recurring_billing_period: data.recurringBillingFrequency 
-            }),
-            ...(data.term && { hs_term_in_months: data.term })
           }
         };
         break;
@@ -482,15 +476,11 @@ class HubSpotTool extends Tool {
               }
             ],
             properties: [
-              'hs_product_id',
               'quantity',
               'price',
               'amount',
               'name',
-              'description',
               'hs_sku',
-              'hs_recurring_billing_period',
-              'hs_term_in_months'
             ],
             limit: 100
           };
