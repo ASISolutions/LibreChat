@@ -67,13 +67,10 @@ class HubSpotTool extends Tool {
         priority: z.string().optional(),
         // Line Item fields
         lineItemId: z.string().optional(),
-        productId: z.string().optional(),
+        sku: z.string().optional(),
         quantity: z.number().optional(),
         price: z.number().optional(),
-        discount: z.number().optional(),
-        tax: z.number().optional(),
-        recurringBillingFrequency: z.string().optional(),
-        term: z.number().optional(),
+        name: z.string().optional(),
         // Association fields
         fromObjectType: z.enum(['contacts', 'companies', 'deals', 'line_items']).optional(),
         fromObjectId: z.string().optional(),
@@ -394,17 +391,29 @@ class HubSpotTool extends Tool {
         method = 'POST';
         body = {
           properties: {
-            hs_product_id: data.productId,
-            quantity: data.quantity,
-            price: data.price,
-            ...(data.discount && { discount: data.discount }),
-            ...(data.tax && { tax: data.tax }),
-            ...(data.recurringBillingFrequency && { 
-              hs_recurring_billing_period: data.recurringBillingFrequency 
-            }),
-            ...(data.term && { hs_term_in_months: data.term })
+            ...(data.sku && { hs_sku: data.sku }),
+            ...(data.quantity && { quantity: data.quantity }),
+            ...(data.price && { price: data.price }),
+            ...(data.name && { name: data.name })
           }
         };
+
+        // Add deal association if dealId is provided
+        if (data.dealId) {
+          body.associations = [
+            {
+              to: {
+                id: data.dealId
+              },
+              types: [
+                {
+                  associationCategory: "HUBSPOT_DEFINED",
+                  associationTypeId: 20 // Standard line_item_to_deal association type
+                }
+              ]
+            }
+          ];
+        }
         break;
 
       case 'updateLineItem':
@@ -415,9 +424,10 @@ class HubSpotTool extends Tool {
         method = 'PATCH';
         body = {
           properties: {
-            ...(data.productId && { hs_product_id: data.productId }),
+            ...(data.sku && { hs_sku: data.sku }),
             ...(data.quantity && { quantity: data.quantity }),
             ...(data.price && { price: data.price }),
+            ...(data.name && { name: data.name }),
             ...(data.discount && { discount: data.discount }),
             ...(data.tax && { tax: data.tax }),
             ...(data.recurringBillingFrequency && { 

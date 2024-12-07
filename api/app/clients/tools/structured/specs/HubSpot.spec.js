@@ -364,4 +364,61 @@ describe('HubSpotTool', () => {
       await expect(tool._call(input)).rejects.toThrow(/required/);
     }
   });
+
+  it('should create line item with SKU and deal association', async () => {
+    const createLineItemInput = {
+      operation: 'createLineItem',
+      data: {
+        name: 'New line item',
+        price: 10,
+        quantity: 1,
+        sku: 'SKU123',
+        dealId: '12345'
+      }
+    };
+
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ id: '789' })
+      })
+    );
+
+    await tool._call(createLineItemInput);
+    
+    // Verify the request body
+    const requestBody = JSON.parse(global.fetch.mock.calls[0][1].body);
+    expect(requestBody).toEqual({
+      properties: {
+        name: 'New line item',
+        price: 10,
+        quantity: 1,
+        hs_sku: 'SKU123'
+      },
+      associations: [
+        {
+          to: {
+            id: '12345'
+          },
+          types: [
+            {
+              associationCategory: 'HUBSPOT_DEFINED',
+              associationTypeId: 20
+            }
+          ]
+        }
+      ]
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.hubapi.com/crm/v3/objects/line_items',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Authorization': 'Bearer test-api-key',
+          'Content-Type': 'application/json'
+        })
+      })
+    );
+  });
 }); 
