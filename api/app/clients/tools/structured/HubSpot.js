@@ -38,7 +38,8 @@ class HubSpotTool extends Tool {
         'getCompany', 'createCompany', 'updateCompany', 'searchCompanies', 'getCompanyByDomain',
         'getDeal', 'createDeal', 'updateDeal', 'searchDeals', 'associateDeal',
         'getLineItem', 'createLineItem', 'updateLineItem', 'searchLineItems', 'associateLineItem',
-        'getDealLineItems', 'getAssociations', 'getAssociationTypes', 'createAssociation', 'deleteAssociation'
+        'getDealLineItems', 'getAssociations', 'getAssociationTypes', 'createAssociation', 'deleteAssociation',
+        'getOwners'
       ]),
       data: z.object({
         // Contact fields
@@ -83,6 +84,11 @@ class HubSpotTool extends Tool {
         properties: z.array(z.string()).optional(),
         limit: z.number().optional(),
         after: z.string().optional(),
+        // Add owner-related fields
+        email: z.string().email().optional(),
+        after: z.string().optional(),
+        limit: z.number().int().min(1).max(100).optional(),
+        archived: z.boolean().optional(),
       }).optional(),
     });
   }
@@ -576,6 +582,23 @@ class HubSpotTool extends Tool {
         method = 'DELETE';
         break;
 
+      case 'getOwners':
+        baseUrl = 'https://api.hubapi.com/crm/v3';
+        endpoint = '/owners';
+        if (data?.email) {
+          queryParams.append('email', data.email);
+        }
+        if (data?.after) {
+          queryParams.append('after', data.after);
+        }
+        if (data?.limit) {
+          queryParams.append('limit', data.limit.toString());
+        }
+        if (data?.archived !== undefined) {
+          queryParams.append('archived', data.archived.toString());
+        }
+        break;
+
       default:
         throw new Error(`Unknown operation: ${operation}`);
     }
@@ -587,7 +610,7 @@ class HubSpotTool extends Tool {
         method,
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         ...(body && { body: JSON.stringify(body) })
       });
@@ -608,4 +631,4 @@ class HubSpotTool extends Tool {
   }
 }
 
-module.exports = HubSpotTool; 
+module.exports = HubSpotTool;
