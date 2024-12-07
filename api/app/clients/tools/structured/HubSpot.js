@@ -76,13 +76,12 @@ Important Notes:
         description: z.string().optional(),
         // Deal fields
         dealId: z.string().optional(),
-        dealName: z.string().optional(),
-        pipeline: z.string().optional(),
-        stage: z.string().optional(),
-        amount: z.number().optional(),
-        closeDate: z.string().optional(),
-        dealType: z.string().optional(),
-        priority: z.string().optional(),
+        dealName: z.string().describe('Required for createDeal: The name of the deal'),
+        pipeline: z.string().describe('Required for createDeal: The pipeline name (e.g. "default")'),
+        stage: z.string().describe('Required for createDeal: The deal stage (e.g. "appointmentscheduled")'),
+        amount: z.number().describe('Required for createDeal: The monetary value of the deal'),
+        closeDate: z.string().describe('Required for createDeal: The expected close date in YYYY-MM-DD format'),
+        dealType: z.string().describe('Required for createDeal: The type of deal (e.g. "newbusiness")'),
         // Line Item fields
         lineItemId: z.string().optional(),
         sku: z.string().optional(),
@@ -329,15 +328,36 @@ Important Notes:
       case 'createDeal':
         endpoint = '/objects/deals';
         method = 'POST';
+        
+        // Map of common stage names to HubSpot's standard stage IDs
+        const stageMapping = {
+          'business initiative defined': 'appointmentscheduled',
+          'compelling client event': 'qualifiedtobuy', 
+          'client sponsor': 'presentationscheduled',
+          'product fit': 'decisionmakerboughtin',
+          'vendor aligned': 'contractsent',
+          'decision criteria': 'closedlost',
+          'closed won': 'closedwon',
+          'vendor client presentation': '184746835',
+          'differentiation': '184746836',
+          'solution & commercial review': '184746837',
+          'proposal complete': '184746838',
+          'presentation/pitch': '184746839',
+          'maximise revenue potential': '184746840',
+          'closed lost': '184746841'
+        };
+
+        // Get the mapped stage or use the original value if no mapping exists
+        const mappedStage = stageMapping[data.stage.toLowerCase()] || data.stage.toLowerCase();
+
         body = {
           properties: {
             dealname: data.dealName,
             pipeline: data.pipeline,
-            dealstage: (data.stage || '').toLowerCase().replace(/\s+/g, ''),
+            dealstage: mappedStage.replace(/\s+/g, ''),
             amount: data.amount,
             closedate: data.closeDate,
             dealtype: (data.dealType || '').toLowerCase().replace(/\s+/g, ''),
-            priority: data.priority
           }
         };
         break;
