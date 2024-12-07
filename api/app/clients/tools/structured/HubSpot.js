@@ -133,6 +133,18 @@ Important Notes:
         }).strict()
       }).strict(),
 
+      updateDeal: z.object({
+        operation: z.literal('updateDeal'),
+        data: z.object({
+          dealId: z.string(),
+          dealName: z.string().optional(),
+          pipeline: z.string().optional(),
+          stage: z.string().optional(),
+          amount: z.number().optional(),
+          closeDate: z.string().optional()
+        }).strict()
+      }).strict(),
+
       getDealLineItems: z.object({
         operation: z.literal('getDealLineItems'),
         data: z.object({
@@ -155,7 +167,7 @@ Important Notes:
 
   async _call(input) {
     // Validate specific operations
-    if (input.operation === 'createLineItem' || input.operation === 'createDeal' || input.operation === 'getDealLineItems') {
+    if (input.operation === 'createLineItem' || input.operation === 'createDeal' || input.operation === 'getDealLineItems' || input.operation === 'updateDeal') {
       input = this.validateOperation(input, input.operation);
     }
 
@@ -399,11 +411,9 @@ Important Notes:
           properties: {
             ...(data.dealName && { dealname: data.dealName }),
             ...(data.pipeline && { pipeline: data.pipeline }),
-            ...(data.stage && { dealstage: data.stage.toLowerCase().replace(/\s+/g, '') }),
+            ...(data.stage && { dealstage: data.stage }),
             ...(data.amount && { amount: data.amount }),
-            ...(data.closeDate && { closedate: data.closeDate }),
-            ...(data.dealType && { dealtype: data.dealType.toLowerCase().replace(/\s+/g, '') }),
-            ...(data.priority && { priority: data.priority })
+            ...(data.closeDate && { closedate: data.closeDate })
           }
         };
         break;
