@@ -77,21 +77,20 @@ Important Notes:
         description: z.string().optional(),
         // Deal fields
         dealId: z.string().describe('Required for createLineItem and updateDeal: The ID of the deal').optional(),
-        dealName: z.string().describe('Required for createDeal: The name of the deal'),
-        pipeline: z.string().describe('Required for createDeal: The pipeline name (e.g. "default")'),
+        dealName: z.string().describe('Required for createDeal: The name of the deal').optional(),
+        pipeline: z.string().describe('Required for createDeal: The pipeline name (e.g. "default")').optional(),
         stage: z.string().describe('Required for createDeal: The deal stage. Available stages:\n' +
           '- "compelling client event" (maps to "qualifiedtobuy")\n' +
           '- "closed won" (maps to "closedwon")\n' +
-          '- "closed lost" (maps to "closedlost")'),
-        amount: z.number().describe('Required for createDeal: The monetary value of the deal'),
-        closeDate: z.string().describe('Required for createDeal: The expected close date in YYYY-MM-DD format'),
-        dealType: z.string().describe('Required for createDeal: The type of deal. Valid options: "newbusiness" or "existingbusiness"'),
+          '- "closed lost" (maps to "closedlost")').optional(),
+        amount: z.number().describe('Required for createDeal: The monetary value of the deal').optional(),
+        closeDate: z.string().describe('Required for createDeal: The expected close date in YYYY-MM-DD format').optional(),
+        dealType: z.string().describe('Required for createDeal: The type of deal. Valid options: "newbusiness" or "existingbusiness"').optional(),
         // Line Item fields
         lineItemId: z.string().optional(),
         sku: z.string().describe('Required for createLineItem: The SKU of the product/service').optional(),
         quantity: z.number().describe('Required for createLineItem: The quantity of the product/service').optional(),
         price: z.number().describe('Required for createLineItem: The price of the product/service').optional(),
-        name: z.string().describe('Required for createLineItem: The name of the product/service').optional(),
         // Association fields
         fromObjectType: z.enum(['contacts', 'companies', 'deals', 'line_items']).optional(),
         fromObjectId: z.string().optional(),
@@ -105,9 +104,6 @@ Important Notes:
         limit: z.number().optional(),
         after: z.string().optional(),
         // Add owner-related fields
-        email: z.string().email().optional(),
-        after: z.string().optional(),
-        limit: z.number().int().min(1).max(100).optional(),
         archived: z.boolean().optional(),
       }).optional(),
     });
@@ -137,12 +133,35 @@ Important Notes:
   }
 
   async _call(input) {
+    // For createLineItem, enforce exact structure before general validation
+    if (input.operation === 'createLineItem') {
+      const createLineItemSchema = z.object({
+        operation: z.literal('createLineItem'),
+        data: z.object({
+          name: z.string(),
+          dealId: z.string(),
+          sku: z.string(),
+          quantity: z.number(),
+          price: z.number()
+        }).strict() // This ensures no additional properties are allowed
+      }).strict(); // This ensures no additional properties are allowed
+
+      const lineItemValidation = createLineItemSchema.safeParse(input);
+      if (!lineItemValidation.success) {
+        throw new Error(`CreateLineItem validation failed: ${JSON.stringify(lineItemValidation.error.issues)}`);
+      }
+      
+      // If validation passes, use the validated data
+      input = lineItemValidation.data;
+    }
+
     const validationResult = this.schema.safeParse(input);
     if (!validationResult.success) {
       throw new Error(`Validation failed: ${JSON.stringify(validationResult.error.issues)}`);
     }
 
     const { operation, data } = validationResult.data;
+
     let baseUrl = 'https://api.hubapi.com/crm/v3';
     let endpoint = '';
     let method = 'GET';
@@ -442,10 +461,10 @@ Important Notes:
         logger.info(`[HubSpot API] Creating line item for deal ID: ${data.dealId}`);
         body = {
           properties: {
-            ...(data.sku && { hs_sku: data.sku }),
-            ...(data.quantity && { quantity: data.quantity }),
-            ...(data.price && { price: data.price }),
-            ...(data.name && { name: data.name })
+            hs_sku: data.sku,
+            quantity: data.quantity,
+            price: data.price,
+            name: data.name
           }
         };
 
