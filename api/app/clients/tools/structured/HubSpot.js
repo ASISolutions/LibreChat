@@ -155,6 +155,28 @@ Important Notes:
       input = lineItemValidation.data;
     }
 
+    if (input.operation === 'createDeal') {
+      const createDealSchema = z.object({
+        operation: z.literal('createDeal'),
+        data: z.object({
+          dealName: z.string(),
+          pipeline: z.string(),
+          stage: z.string(),
+          amount: z.number(),
+          closeDate: z.string(),
+          dealType: z.string()
+        }).strict() // This ensures no additional properties are allowed
+      }).strict(); // This ensures no additional properties are allowed
+
+      const dealValidation = createDealSchema.safeParse(input);
+      if (!dealValidation.success) {
+        throw new Error(`CreateDeal validation failed: ${JSON.stringify(dealValidation.error.issues)}`);
+      }
+      
+      // If validation passes, use the validated data
+      input = dealValidation.data;
+    }
+
     const validationResult = this.schema.safeParse(input);
     if (!validationResult.success) {
       throw new Error(`Validation failed: ${JSON.stringify(validationResult.error.issues)}`);
