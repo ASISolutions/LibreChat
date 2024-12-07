@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const { getEnvironmentVariable } = require('@langchain/core/utils/env');
+const logger = require('~/config/winston');
 
 class HubSpotTool extends Tool {
   static lc_name() {
@@ -438,7 +439,7 @@ Important Notes:
         }
         endpoint = '/objects/line_items';
         method = 'POST';
-        console.log(`[HubSpot API] Creating line item for deal ID: ${data.dealId}`);
+        logger.info(`[HubSpot API] Creating line item for deal ID: ${data.dealId}`);
         body = {
           properties: {
             ...(data.sku && { hs_sku: data.sku }),
@@ -449,7 +450,7 @@ Important Notes:
         };
 
         // Add deal association
-        console.log(`[HubSpot API] Adding association to deal ID: ${data.dealId}`);
+        logger.info(`[HubSpot API] Adding association to deal ID: ${data.dealId}`);
         body.associations = [
           {
             to: {
@@ -508,7 +509,7 @@ Important Notes:
         }
 
         try {
-          console.log(`Fetching line items for deal ID: ${dealId}`);
+          logger.info(`Fetching line items for deal ID: ${dealId}`);
 
           endpoint = '/objects/line_items/search';
           method = 'POST';
@@ -575,7 +576,7 @@ Important Notes:
           });
 
         } catch (error) {
-          console.error('Error in getDealLineItems:', error);
+          logger.error('Error in getDealLineItems:', error);
           throw new Error(`Failed to get deal line items: ${error.message}`);
         }
         break;
@@ -649,6 +650,12 @@ Important Notes:
     const url = `${baseUrl}${endpoint}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
     
     try {
+      logger.debug(`[HubSpot] Making ${method} request for operation: ${operation}`);
+      logger.debug(`[HubSpot] Request URL: ${url}`);
+      if (body) {
+        logger.debug(`[HubSpot] Request Body: ${JSON.stringify(body)}`);
+      }
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -659,16 +666,21 @@ Important Notes:
       });
 
       if (method === 'DELETE' && response.status === 204) {
+        logger.debug(`[HubSpot] Successfully deleted association (Status: ${response.status})`);
         return JSON.stringify({ success: true, message: 'Association deleted successfully' });
       }
 
       const json = await response.json();
+      logger.debug(`[HubSpot] Response for ${operation}: ${JSON.stringify(json)}`);
+      
       if (!response.ok) {
+        logger.error(`[HubSpot] Error Response for ${operation} (Status: ${response.status}): ${JSON.stringify(json)}`);
         throw new Error(`HubSpot request failed with status ${response.status}: ${JSON.stringify(json)}`);
       }
 
       return JSON.stringify(json);
     } catch (error) {
+      logger.error(`[HubSpot] Error in ${operation}: ${error.message}`);
       throw new Error(`HubSpot API request failed: ${error.message}`);
     }
   }
