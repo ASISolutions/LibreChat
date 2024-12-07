@@ -107,6 +107,43 @@ Important Notes:
         archived: z.boolean().optional(),
       }).optional(),
     });
+
+    // Define operation schemas
+    this.operationSchemas = {
+      createLineItem: z.object({
+        operation: z.literal('createLineItem'),
+        data: z.object({
+          name: z.string(),
+          dealId: z.string(),
+          sku: z.string(),
+          quantity: z.number(),
+          price: z.number()
+        }).strict()
+      }).strict(),
+
+      createDeal: z.object({
+        operation: z.literal('createDeal'),
+        data: z.object({
+          dealName: z.string(),
+          pipeline: z.string(),
+          stage: z.string(),
+          amount: z.number(),
+          closeDate: z.string(),
+          dealType: z.string()
+        }).strict()
+      }).strict()
+    };
+  }
+
+  validateOperation(input, operation) {
+    const schema = this.operationSchemas[operation];
+    if (!schema) return input;
+
+    const validation = schema.safeParse(input);
+    if (!validation.success) {
+      throw new Error(`${operation} validation failed: ${JSON.stringify(validation.error.issues)}`);
+    }
+    return validation.data;
   }
 
   // Helper method to verify deal exists
@@ -133,48 +170,9 @@ Important Notes:
   }
 
   async _call(input) {
-    // For createLineItem, enforce exact structure before general validation
-    if (input.operation === 'createLineItem') {
-      const createLineItemSchema = z.object({
-        operation: z.literal('createLineItem'),
-        data: z.object({
-          name: z.string(),
-          dealId: z.string(),
-          sku: z.string(),
-          quantity: z.number(),
-          price: z.number()
-        }).strict() // This ensures no additional properties are allowed
-      }).strict(); // This ensures no additional properties are allowed
-
-      const lineItemValidation = createLineItemSchema.safeParse(input);
-      if (!lineItemValidation.success) {
-        throw new Error(`CreateLineItem validation failed: ${JSON.stringify(lineItemValidation.error.issues)}`);
-      }
-      
-      // If validation passes, use the validated data
-      input = lineItemValidation.data;
-    }
-
-    if (input.operation === 'createDeal') {
-      const createDealSchema = z.object({
-        operation: z.literal('createDeal'),
-        data: z.object({
-          dealName: z.string(),
-          pipeline: z.string(),
-          stage: z.string(),
-          amount: z.number(),
-          closeDate: z.string(),
-          dealType: z.string()
-        }).strict() // This ensures no additional properties are allowed
-      }).strict(); // This ensures no additional properties are allowed
-
-      const dealValidation = createDealSchema.safeParse(input);
-      if (!dealValidation.success) {
-        throw new Error(`CreateDeal validation failed: ${JSON.stringify(dealValidation.error.issues)}`);
-      }
-      
-      // If validation passes, use the validated data
-      input = dealValidation.data;
+    // Validate specific operations
+    if (input.operation === 'createLineItem' || input.operation === 'createDeal') {
+      input = this.validateOperation(input, input.operation);
     }
 
     const validationResult = this.schema.safeParse(input);
