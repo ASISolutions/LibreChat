@@ -21,7 +21,16 @@ class HubSpotTool extends Tool {
     this.kwargs = fields?.kwargs ?? {};
     this.description = 'A tool to interact with HubSpot CRM. Useful for managing contacts, deals, and companies.';
     
-    this.description_for_model = `This tool interacts with HubSpot CRM. When retrieving line items for a deal:
+    this.description_for_model = `This tool interacts with HubSpot CRM and supports the following key operations:
+
+1. Contacts: Create, update, search, and retrieve contact information
+2. Companies: Manage company records including creation, updates, and domain-based searches
+3. Deals: Handle deal pipeline management with creation, updates, and status tracking
+4. Line Items: Manage products/services associated with deals
+5. Associations: Create and manage relationships between different HubSpot objects
+6. Owners: Retrieve owner information based on email
+
+When retrieving line items for a deal:
 1. The response will include line item details that should be formatted as a markdown table
 2. Important columns to include: Name, Quantity, Price, Amount, SKU
 3. Format currency values with 2 decimal places and include currency symbol ($)
@@ -30,7 +39,15 @@ class HubSpotTool extends Tool {
    |------|----------|-------|---------|-----|
    | Item 1 | 2 | $99.99 | $199.98 | SKU123 |
 5. Include a summary row at the bottom with the total amount
-6. Add a message indicating the deal ID and total number of items`;
+6. Add a message indicating the deal ID and total number of items
+
+Important Notes:
+- All monetary values should be formatted with 2 decimal places
+- Dates should be in ISO format (YYYY-MM-DD)
+- IDs must be provided for update operations
+- Email addresses must be valid format
+- Search operations support pagination with 'limit' and 'after' parameters
+- Association operations require both source and target object details`;
 
     this.schema = z.object({
       operation: z.enum([
