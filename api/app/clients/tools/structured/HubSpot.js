@@ -131,7 +131,14 @@ Important Notes:
           closeDate: z.string(),
           dealType: z.string()
         }).strict()
-      }).strict()
+      }).strict(),
+
+      getDealLineItems: z.object({
+        operation: z.literal('getDealLineItems'),
+        data: z.object({
+          dealId: z.string()
+        }).strict()
+      }).strict(),
     };
   }
 
@@ -171,7 +178,7 @@ Important Notes:
 
   async _call(input) {
     // Validate specific operations
-    if (input.operation === 'createLineItem' || input.operation === 'createDeal') {
+    if (input.operation === 'createLineItem' || input.operation === 'createDeal' || input.operation === 'getDealLineItems') {
       input = this.validateOperation(input, input.operation);
     }
 
