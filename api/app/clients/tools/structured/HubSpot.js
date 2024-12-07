@@ -313,10 +313,10 @@ class HubSpotTool extends Tool {
           properties: {
             dealname: data.dealName,
             pipeline: data.pipeline,
-            dealstage: data.stage,
+            dealstage: (data.stage || '').toLowerCase().replace(/\s+/g, ''),
             amount: data.amount,
             closedate: data.closeDate,
-            dealtype: data.dealType,
+            dealtype: (data.dealType || '').toLowerCase().replace(/\s+/g, ''),
             priority: data.priority
           }
         };
@@ -332,10 +332,10 @@ class HubSpotTool extends Tool {
           properties: {
             ...(data.dealName && { dealname: data.dealName }),
             ...(data.pipeline && { pipeline: data.pipeline }),
-            ...(data.stage && { dealstage: data.stage }),
+            ...(data.stage && { dealstage: data.stage.toLowerCase().replace(/\s+/g, '') }),
             ...(data.amount && { amount: data.amount }),
             ...(data.closeDate && { closedate: data.closeDate }),
-            ...(data.dealType && { dealtype: data.dealType }),
+            ...(data.dealType && { dealtype: data.dealType.toLowerCase().replace(/\s+/g, '') }),
             ...(data.priority && { priority: data.priority })
           }
         };
