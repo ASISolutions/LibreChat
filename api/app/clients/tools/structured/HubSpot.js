@@ -75,19 +75,22 @@ Important Notes:
         website: z.string().optional(),
         description: z.string().optional(),
         // Deal fields
-        dealId: z.string().optional(),
+        dealId: z.string().describe('Required for createLineItem and updateDeal: The ID of the deal').optional(),
         dealName: z.string().describe('Required for createDeal: The name of the deal'),
         pipeline: z.string().describe('Required for createDeal: The pipeline name (e.g. "default")'),
-        stage: z.string().describe('Required for createDeal: The deal stage (e.g. "appointmentscheduled")'),
+        stage: z.string().describe('Required for createDeal: The deal stage. Available stages:\n' +
+          '- "compelling client event" (maps to "qualifiedtobuy")\n' +
+          '- "closed won" (maps to "closedwon")\n' +
+          '- "closed lost" (maps to "closedlost")'),
         amount: z.number().describe('Required for createDeal: The monetary value of the deal'),
         closeDate: z.string().describe('Required for createDeal: The expected close date in YYYY-MM-DD format'),
-        dealType: z.string().describe('Required for createDeal: The type of deal (e.g. "newbusiness")'),
+        dealType: z.string().describe('Required for createDeal: The type of deal. Valid options: "newbusiness" or "existingbusiness"'),
         // Line Item fields
         lineItemId: z.string().optional(),
-        sku: z.string().optional(),
-        quantity: z.number().optional(),
-        price: z.number().optional(),
-        name: z.string().optional(),
+        sku: z.string().describe('Required for createLineItem: The SKU of the product/service').optional(),
+        quantity: z.number().describe('Required for createLineItem: The quantity of the product/service').optional(),
+        price: z.number().describe('Required for createLineItem: The price of the product/service').optional(),
+        name: z.string().describe('Required for createLineItem: The name of the product/service').optional(),
         // Association fields
         fromObjectType: z.enum(['contacts', 'companies', 'deals', 'line_items']).optional(),
         fromObjectId: z.string().optional(),
@@ -430,8 +433,12 @@ Important Notes:
         break;
 
       case 'createLineItem':
+        if (!data?.dealId) {
+          throw new Error('Deal ID is required for creating a line item');
+        }
         endpoint = '/objects/line_items';
         method = 'POST';
+        console.log(`[HubSpot API] Creating line item for deal ID: ${data.dealId}`);
         body = {
           properties: {
             ...(data.sku && { hs_sku: data.sku }),
@@ -441,22 +448,21 @@ Important Notes:
           }
         };
 
-        // Add deal association if dealId is provided
-        if (data.dealId) {
-          body.associations = [
-            {
-              to: {
-                id: data.dealId
-              },
-              types: [
-                {
-                  associationCategory: "HUBSPOT_DEFINED",
-                  associationTypeId: 20 // Standard line_item_to_deal association type
-                }
-              ]
-            }
-          ];
-        }
+        // Add deal association
+        console.log(`[HubSpot API] Adding association to deal ID: ${data.dealId}`);
+        body.associations = [
+          {
+            to: {
+              id: data.dealId
+            },
+            types: [
+              {
+                associationCategory: "HUBSPOT_DEFINED",
+                associationTypeId: 20 // Standard line_item_to_deal association type
+              }
+            ]
+          }
+        ];
         break;
 
       case 'updateLineItem':
