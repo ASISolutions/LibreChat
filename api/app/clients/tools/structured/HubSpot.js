@@ -20,13 +20,25 @@ class HubSpotTool extends Tool {
 
     this.kwargs = fields?.kwargs ?? {};
     this.description = 'A tool to interact with HubSpot CRM. Useful for managing contacts, deals, and companies.';
+    
+    this.description_for_model = `This tool interacts with HubSpot CRM. When retrieving line items for a deal:
+1. The response will include line item details that should be formatted as a markdown table
+2. Important columns to include: Name, Quantity, Price, Amount, SKU
+3. Format currency values with 2 decimal places and include currency symbol ($)
+4. Format the table with proper markdown syntax:
+   | Name | Quantity | Price | Amount | SKU |
+   |------|----------|-------|---------|-----|
+   | Item 1 | 2 | $99.99 | $199.98 | SKU123 |
+5. Include a summary row at the bottom with the total amount
+6. Add a message indicating the deal ID and total number of items`;
 
     this.schema = z.object({
       operation: z.enum([
         'getContact', 'createContact', 'updateContact', 'searchContacts', 'getContactByEmail',
         'getCompany', 'createCompany', 'updateCompany', 'searchCompanies', 'getCompanyByDomain',
         'getDeal', 'createDeal', 'updateDeal', 'searchDeals', 'associateDeal',
-        'getLineItem', 'createLineItem', 'updateLineItem', 'searchLineItems', 'associateLineItem'
+        'getLineItem', 'createLineItem', 'updateLineItem', 'searchLineItems', 'associateLineItem',
+        'getDealLineItems', 'getAssociations', 'getAssociationTypes', 'createAssociation', 'deleteAssociation'
       ]),
       data: z.object({
         // Contact fields
@@ -63,15 +75,42 @@ class HubSpotTool extends Tool {
         recurringBillingFrequency: z.string().optional(),
         term: z.number().optional(),
         // Association fields
-        toObjectType: z.enum(['contact', 'company', 'deal']).optional(),
+        fromObjectType: z.enum(['contacts', 'companies', 'deals', 'line_items']).optional(),
+        fromObjectId: z.string().optional(),
+        toObjectType: z.enum(['contacts', 'companies', 'deals', 'line_items']).optional(),
         toObjectId: z.string().optional(),
         associationType: z.string().optional(),
         // Common fields
         company: z.string().optional(),
         query: z.string().optional(),
         properties: z.array(z.string()).optional(),
+        limit: z.number().optional(),
+        after: z.string().optional(),
       }).optional(),
     });
+  }
+
+  // Helper method to verify deal exists
+  async verifyDealExists(dealId) {
+    const url = `https://api.hubapi.com/crm/v3/objects/deals/${dealId}`;
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`Deal verification failed: ${error.message || 'Deal not found'}`);
+      }
+
+      return true;
+    } catch (error) {
+      throw new Error(`Invalid deal ID (${dealId}): ${error.message}`);
+    }
   }
 
   async _call(input) {
@@ -81,7 +120,7 @@ class HubSpotTool extends Tool {
     }
 
     const { operation, data } = validationResult.data;
-    const baseUrl = 'https://api.hubapi.com/crm/v3';
+    let baseUrl = 'https://api.hubapi.com/crm/v3';
     let endpoint = '';
     let method = 'GET';
     let body = null;
@@ -403,27 +442,169 @@ class HubSpotTool extends Tool {
         };
         break;
 
+      // Specific operation for getting deal line items
+      case 'getDealLineItems':
+        const dealIdInput = data?.dealId || data?.id;
+        if (!dealIdInput) {
+          throw new Error('Deal ID is required for getting associated line items. Please provide either "id" or "dealId" in the data.');
+        }
+
+        const dealId = dealIdInput.toString().replace(/[^0-9]/g, '');
+        if (!dealId) {
+          throw new Error('Invalid deal ID format. Expected a numeric ID.');
+        }
+
+        try {
+          console.log(`Fetching line items for deal ID: ${dealId}`);
+
+          endpoint = '/objects/line_items/search';
+          method = 'POST';
+          body = {
+            filterGroups: [
+              {
+                filters: [
+                  {
+                    propertyName: 'associations.deal',
+                    operator: 'EQ',
+                    value: dealId
+                  }
+                ]
+              }
+            ],
+            properties: [
+              'hs_product_id',
+              'quantity',
+              'price',
+              'amount',
+              'name',
+              'description',
+              'hs_sku',
+              'hs_recurring_billing_period',
+              'hs_term_in_months'
+            ],
+            limit: 100
+          };
+
+          const searchResponse = await fetch(`${baseUrl}${endpoint}`, {
+            method,
+            headers: {
+              'Authorization': `Bearer ${this.apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+          });
+
+          const searchJson = await searchResponse.json();
+          
+          if (!searchResponse.ok) {
+            throw new Error(`Failed to get line items: ${JSON.stringify(searchJson)}`);
+          }
+
+          // Calculate total amount
+          const totalAmount = searchJson.results?.reduce((sum, item) => {
+            const amount = parseFloat(item.properties.amount) || 0;
+            return sum + amount;
+          }, 0);
+
+          // Format the response with table data
+          return JSON.stringify({
+            total: searchJson.total || searchJson.results?.length || 0,
+            results: searchJson.results || [],
+            dealId: dealId,
+            totalAmount: totalAmount,
+            message: `Successfully retrieved ${searchJson.results?.length || 0} line items for deal ${dealId}`,
+            tableData: {
+              headers: ['Name', 'Quantity', 'Price', 'Amount', 'SKU'],
+              rows: searchJson.results?.map(item => ({
+                name: item.properties.name || 'N/A',
+                quantity: item.properties.quantity || '0',
+                price: parseFloat(item.properties.price || 0).toFixed(2),
+                amount: parseFloat(item.properties.amount || 0).toFixed(2),
+                sku: item.properties.hs_sku || 'N/A'
+              })) || []
+            }
+          });
+
+        } catch (error) {
+          console.error('Error in getDealLineItems:', error);
+          throw new Error(`Failed to get deal line items: ${error.message}`);
+        }
+        break;
+
+      // Association Operations
+      case 'getAssociations':
+        if (!data?.fromObjectType || !data?.fromObjectId || !data?.toObjectType) {
+          throw new Error('From object type, from object ID, and to object type are required for getting associations');
+        }
+        baseUrl = 'https://api.hubapi.com/crm/v4';
+        endpoint = `/objects/${data.fromObjectType}/${data.fromObjectId}/associations/${data.toObjectType}`;
+        
+        // Add properties to get associated object details
+        if (data.properties) {
+          queryParams.append('properties', data.properties.join(','));
+        }
+        break;
+
+      case 'getAssociationTypes':
+        if (!data?.fromObjectType || !data?.toObjectType) {
+          throw new Error('From object type and to object type are required for getting association types');
+        }
+        baseUrl = 'https://api.hubapi.com/crm/v4';
+        endpoint = `/associations/${data.fromObjectType}/${data.toObjectType}/types`;
+        break;
+
+      case 'createAssociation':
+        if (!data?.fromObjectType || !data?.fromObjectId || !data?.toObjectType || !data?.toObjectId) {
+          throw new Error('From object type, from object ID, to object type, and to object ID are required for creating associations');
+        }
+        endpoint = `/objects/${data.fromObjectType}/${data.fromObjectId}/associations/${data.toObjectType}/${data.toObjectId}`;
+        method = 'PUT';
+        body = {
+          types: [{
+            associationCategory: 'HUBSPOT_DEFINED',
+            associationTypeId: data.associationType || 'deal_to_line_item'
+          }]
+        };
+        break;
+
+      case 'deleteAssociation':
+        if (!data?.fromObjectType || !data?.fromObjectId || !data?.toObjectType || !data?.toObjectId) {
+          throw new Error('From object type, from object ID, to object type, and to object ID are required for deleting associations');
+        }
+        baseUrl = 'https://api.hubapi.com/crm/v4';
+        endpoint = `/objects/${data.fromObjectType}/${data.fromObjectId}/associations/${data.toObjectType}/${data.toObjectId}`;
+        method = 'DELETE';
+        break;
+
       default:
         throw new Error(`Unknown operation: ${operation}`);
     }
 
     const url = `${baseUrl}${endpoint}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
     
-    const response = await fetch(url, {
-      method,
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      ...(body && { body: JSON.stringify(body) })
-    });
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        ...(body && { body: JSON.stringify(body) })
+      });
 
-    const json = await response.json();
-    if (!response.ok) {
-      throw new Error(`HubSpot request failed with status ${response.status}: ${json.message}`);
+      if (method === 'DELETE' && response.status === 204) {
+        return JSON.stringify({ success: true, message: 'Association deleted successfully' });
+      }
+
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(`HubSpot request failed with status ${response.status}: ${JSON.stringify(json)}`);
+      }
+
+      return JSON.stringify(json);
+    } catch (error) {
+      throw new Error(`HubSpot API request failed: ${error.message}`);
     }
-
-    return JSON.stringify(json);
   }
 }
 
