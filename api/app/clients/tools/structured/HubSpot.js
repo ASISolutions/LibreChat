@@ -153,29 +153,6 @@ Important Notes:
     return validation.data;
   }
 
-  // Helper method to verify deal exists
-  async verifyDealExists(dealId) {
-    const url = `https://api.hubapi.com/crm/v3/objects/deals/${dealId}`;
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(`Deal verification failed: ${error.message || 'Deal not found'}`);
-      }
-
-      return true;
-    } catch (error) {
-      throw new Error(`Invalid deal ID (${dealId}): ${error.message}`);
-    }
-  }
-
   async _call(input) {
     // Validate specific operations
     if (input.operation === 'createLineItem' || input.operation === 'createDeal' || input.operation === 'getDealLineItems') {
