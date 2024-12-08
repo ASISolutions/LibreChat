@@ -542,11 +542,33 @@ Important Notes:
         }
 
         if (data.dealStage) {
-          filters.push({
-            propertyName: 'dealstage',
-            operator: 'EQ',
-            value: data.dealStage.toLowerCase().replace(/\s+/g, '')
-          });
+          // Handle 'open' deals special case
+          if (data.dealStage.toLowerCase() === 'open') {
+            filters.push({
+              propertyName: 'dealstage',
+              operator: 'IN',
+              values: [
+                'qualifiedtobuy', // compelling client event
+                '184746840',  // maximise revenue potential
+                '184746837',  // solution & commercial review
+                'appointmentscheduled', // business initiative defined
+                '184746838'   // proposal complete
+              ]
+            });
+          } else if (data.dealStage.toLowerCase() === 'closed') {
+            filters.push({
+              propertyName: 'dealstage',
+              operator: 'IN',
+              values: ['closedwon', 'closedlost']
+            });
+          } else {
+            // Normal dealStage filter
+            filters.push({
+              propertyName: 'dealstage',
+              operator: 'EQ',
+              value: data.dealStage.toLowerCase().replace(/\s+/g, '')
+            });
+          }
         }
 
         if (data.dealName) {
