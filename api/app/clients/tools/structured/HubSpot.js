@@ -151,6 +151,16 @@ Important Notes:
           dealId: z.string()
         }).strict()
       }).strict(),
+
+      createAssociation: z.object({
+        operation: z.literal('createAssociation'),
+        data: z.object({
+          fromObjectType: z.string(),
+          fromObjectId: z.string(),
+          toObjectType: z.string(),
+          toObjectId: z.string()
+        }).strict()
+      }).strict()
     };
   }
 
@@ -167,7 +177,7 @@ Important Notes:
 
   async _call(input) {
     // Validate specific operations
-    if (input.operation === 'createLineItem' || input.operation === 'createDeal' || input.operation === 'getDealLineItems' || input.operation === 'updateDeal') {
+    if (input.operation === 'createLineItem' || input.operation === 'createDeal' || input.operation === 'getDealLineItems' || input.operation === 'updateDeal' || input.operation === 'createAssociation') {
       input = this.validateOperation(input, input.operation);
     }
 
@@ -637,15 +647,13 @@ Important Notes:
         break;
 
       case 'createAssociation':
-        if (!data?.fromObjectType || !data?.fromObjectId || !data?.toObjectType || !data?.toObjectId) {
-          throw new Error('From object type, from object ID, to object type, and to object ID are required for creating associations');
-        }
-        endpoint = `/objects/${data.fromObjectType}/${data.fromObjectId}/associations/${data.toObjectType}/${data.toObjectId}`;
-        method = 'PUT';
+        endpoint = `/associations/${data.fromObjectType}/${data.toObjectType}/batch/create`;
+        method = 'POST';
         body = {
-          types: [{
-            associationCategory: 'HUBSPOT_DEFINED',
-            associationTypeId: data.associationType || 'deal_to_line_item'
+          inputs: [{
+            from: { id: data.fromObjectId },
+            to: { id: data.toObjectId },
+            type: data.associationType || 'deal_to_company'
           }]
         };
         break;
