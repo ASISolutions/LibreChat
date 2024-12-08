@@ -155,9 +155,9 @@ Important Notes:
       createAssociation: z.object({
         operation: z.literal('createAssociation'),
         data: z.object({
-          fromObjectType: z.string(),
+          fromObjectType: z.enum(['contacts', 'companies', 'deals', 'line_items']),
           fromObjectId: z.string(),
-          toObjectType: z.string(),
+          toObjectType: z.enum(['contacts', 'companies', 'deals', 'line_items']),
           toObjectId: z.string()
         }).strict()
       }).strict()
@@ -649,11 +649,30 @@ Important Notes:
       case 'createAssociation':
         endpoint = `/associations/${data.fromObjectType}/${data.toObjectType}/batch/create`;
         method = 'POST';
+        
+        // Define standard association types based on object types
+        let associationType;
+        if (data.fromObjectType === 'companies' && data.toObjectType === 'deals') {
+          associationType = 'company_to_deal';
+        } else if (data.fromObjectType === 'deals' && data.toObjectType === 'companies') {
+          associationType = 'deal_to_company';
+        } else if (data.fromObjectType === 'contacts' && data.toObjectType === 'deals') {
+          associationType = 'contact_to_deal';
+        } else if (data.fromObjectType === 'deals' && data.toObjectType === 'contacts') {
+          associationType = 'deal_to_contact';
+        } else {
+          // Use provided association type or throw error if not specified
+          associationType = data.associationType;
+          if (!associationType) {
+            throw new Error(`Association type must be specified for ${data.fromObjectType} to ${data.toObjectType} association`);
+          }
+        }
+
         body = {
           inputs: [{
             from: { id: data.fromObjectId },
             to: { id: data.toObjectId },
-            type: data.associationType || 'deal_to_company'
+            type: associationType
           }]
         };
         break;
