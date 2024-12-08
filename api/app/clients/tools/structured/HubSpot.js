@@ -106,6 +106,16 @@ Important Notes:
         // Add owner-related fields
         archived: z.boolean().optional(),
         operator: z.enum(['EQ', 'NEQ', 'LT', 'LTE', 'GT', 'GTE', 'CONTAINS_TOKEN']).optional(),
+        // Add closedate search fields
+        closeDate: z.string().optional().describe('Date to filter deals by close date (format: YYYY-MM-DD)'),
+        closeDateOperator: z.enum(['EQ', 'NEQ', 'LT', 'LTE', 'GT', 'GTE']).optional()
+          .describe('Operator for closedate filter. Default: EQ'),
+        // Add deal stage filter
+        dealStage: z.string().optional().describe('Stage to filter deals by (e.g. "closedwon", "qualifiedtobuy")'),
+        // Add deal name filter
+        dealName: z.string().optional().describe('Name to filter deals by'),
+        dealNameOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+          .describe('Operator for dealname filter. Default: CONTAINS_TOKEN'),
       }).optional(),
     });
 
@@ -352,13 +362,53 @@ Important Notes:
       case 'searchDeals':
         endpoint = '/objects/deals/search';
         method = 'POST';
+        
+        // Build filters array
+        const filters = [];
+        
+        // Base filter for all searches
+        filters.push({
+          propertyName: 'createdate',
+          operator: 'GTE',
+          value: '0'
+        });
+
+        // Add filters based on search criteria
+        if (data.query) {
+          filters.push({
+            propertyName: 'dealname',
+            operator: 'CONTAINS_TOKEN',
+            value: data.query
+          });
+        }
+
+        if (data.closeDate) {
+          filters.push({
+            propertyName: 'closedate',
+            operator: data.closeDateOperator || 'EQ',
+            value: data.closeDate
+          });
+        }
+
+        if (data.dealStage) {
+          filters.push({
+            propertyName: 'dealstage',
+            operator: 'EQ',
+            value: data.dealStage.toLowerCase().replace(/\s+/g, '')
+          });
+        }
+
+        if (data.dealName) {
+          filters.push({
+            propertyName: 'dealname',
+            operator: data.dealNameOperator || 'CONTAINS_TOKEN',
+            value: data.dealName
+          });
+        }
+
         body = {
           filterGroups: [{
-            filters: [{
-              propertyName: data.query ? 'dealname' : 'createdate',
-              operator: data.operator || (data.query ? 'EQ' : 'GTE'),
-              value: data.query || '0'
-            }]
+            filters
           }],
           properties: data.properties || ['dealname', 'pipeline', 'dealstage', 'amount', 'closedate', 'dealtype'],
           limit: data.limit || 10
