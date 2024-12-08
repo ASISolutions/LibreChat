@@ -116,6 +116,9 @@ Important Notes:
         dealName: z.string().optional().describe('Name to filter deals by'),
         dealNameOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
           .describe('Operator for dealname filter. Default: CONTAINS_TOKEN'),
+        hubspotOwnerId: z.string().optional().describe('HubSpot owner ID to filter deals by'),
+        hubspotOwnerIdOperator: z.enum(['EQ', 'NEQ']).optional()
+          .describe('Operator for hubspot_owner_id filter. Default: EQ'),
         // Contact search fields
         email: z.string().optional().describe('Email to filter contacts by'),
         operator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
@@ -543,11 +546,19 @@ Important Notes:
           });
         }
 
+        if (data.hubspotOwnerId) {
+          filters.push({
+            propertyName: 'hubspot_owner_id',
+            operator: data.hubspotOwnerIdOperator || 'EQ',
+            value: data.hubspotOwnerId
+          });
+        }
+
         body = {
           filterGroups: [{
             filters
           }],
-          properties: data.properties || ['dealname', 'pipeline', 'dealstage', 'amount', 'closedate', 'dealtype'],
+          properties: data.properties || ['dealname', 'pipeline', 'dealstage', 'amount', 'closedate', 'dealtype', 'hubspot_owner_id'],
           limit: data.limit || 10
         };
         break;
