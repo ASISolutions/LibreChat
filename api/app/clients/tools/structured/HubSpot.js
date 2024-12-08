@@ -105,6 +105,7 @@ Important Notes:
         after: z.string().optional(),
         // Add owner-related fields
         archived: z.boolean().optional(),
+        operator: z.enum(['EQ', 'NEQ', 'LT', 'LTE', 'GT', 'GTE', 'CONTAINS_TOKEN']).optional(),
       }).optional(),
     });
 
@@ -203,12 +204,12 @@ Important Notes:
           filterGroups: [{
             filters: [{
               propertyName: data.query ? 'email' : 'createdate',
-              operator: data.query ? 'CONTAINS_TOKEN' : 'GTE',
+              operator: data.operator || (data.query ? 'EQ' : 'GTE'),
               value: data.query || '0'
             }]
           }],
           properties: data.properties || ['email', 'firstname', 'lastname', 'company', 'phone'],
-          limit: 10
+          limit: data.limit || 10
         };
         break;
 
@@ -277,12 +278,12 @@ Important Notes:
           filterGroups: [{
             filters: [{
               propertyName: data.query ? 'name' : 'createdate',
-              operator: data.query ? 'CONTAINS_TOKEN' : 'GTE',
+              operator: data.operator || (data.query ? 'EQ' : 'GTE'),
               value: data.query || '0'
             }]
           }],
           properties: data.properties || ['name', 'domain', 'website', 'industry', 'city', 'country'],
-          limit: 10
+          limit: data.limit || 10
         };
         break;
 
@@ -355,12 +356,12 @@ Important Notes:
           filterGroups: [{
             filters: [{
               propertyName: data.query ? 'dealname' : 'createdate',
-              operator: data.query ? 'CONTAINS_TOKEN' : 'GTE',
+              operator: data.operator || (data.query ? 'EQ' : 'GTE'),
               value: data.query || '0'
             }]
           }],
           properties: data.properties || ['dealname', 'pipeline', 'dealstage', 'amount', 'closedate', 'dealtype'],
-          limit: 10
+          limit: data.limit || 10
         };
         break;
 
