@@ -57,7 +57,8 @@ Important Notes:
         'getDeal', 'createDeal', 'updateDeal', 'searchDeals', 'associateDeal',
         'getLineItem', 'createLineItem', 'updateLineItem', 'searchLineItems', 'associateLineItem',
         'getDealLineItems', 'getAssociations', 'getAssociationTypes', 'createAssociation', 'deleteAssociation',
-        'getOwners'
+        'getOwners',
+        'getPropertyDetails'
       ]),
       data: z.object({
         // Contact fields
@@ -147,6 +148,8 @@ Important Notes:
           .describe('Operator for city filter. Default: CONTAINS_TOKEN'),
         countryOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
           .describe('Operator for country filter. Default: EQ'),
+        objectType: z.enum(['deals', 'contacts', 'companies', 'line_items']).optional(),
+        propertyName: z.string().optional(),
       }).optional(),
     });
 
@@ -212,6 +215,14 @@ Important Notes:
       searchCompanies: z.object({
         operation: z.literal('searchCompanies'),
         data: z.object({}).strict()
+      }).strict(),
+
+      getPropertyDetails: z.object({
+        operation: z.literal('getPropertyDetails'),
+        data: z.object({
+          objectType: z.enum(['deals', 'contacts', 'companies', 'line_items']),
+          propertyName: z.string()
+        }).strict()
       }).strict()
     };
   }
@@ -900,6 +911,13 @@ Important Notes:
         if (data?.archived !== undefined) {
           queryParams.append('archived', data.archived.toString());
         }
+        break;
+
+      case 'getPropertyDetails':
+        if (!data?.objectType || !data?.propertyName) {
+          throw new Error('Object type and property name are required for getting property details');
+        }
+        endpoint = `/properties/${data.objectType}/${data.propertyName}`;
         break;
 
       default:
