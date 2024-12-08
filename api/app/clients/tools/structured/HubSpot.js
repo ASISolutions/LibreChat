@@ -132,6 +132,18 @@ Important Notes:
         phone: z.string().optional().describe('Phone to filter contacts by'),
         phoneOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
           .describe('Operator for phone filter. Default: EQ'),
+        nameOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+          .describe('Operator for name filter. Default: CONTAINS_TOKEN'),
+        domainOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+          .describe('Operator for domain filter. Default: EQ'),
+        websiteOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+          .describe('Operator for website filter. Default: CONTAINS_TOKEN'),
+        industryOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+          .describe('Operator for industry filter. Default: CONTAINS_TOKEN'),
+        cityOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+          .describe('Operator for city filter. Default: CONTAINS_TOKEN'),
+        countryOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+          .describe('Operator for country filter. Default: EQ'),
       }).optional(),
     });
 
@@ -191,6 +203,11 @@ Important Notes:
 
       searchContacts: z.object({
         operation: z.literal('searchContacts'),
+        data: z.object({}).strict()
+      }).strict(),
+
+      searchCompanies: z.object({
+        operation: z.literal('searchCompanies'),
         data: z.object({}).strict()
       }).strict()
     };
@@ -350,32 +367,86 @@ Important Notes:
       case 'searchCompanies':
         endpoint = '/objects/companies/search';
         method = 'POST';
+        
+        // Build filters array
+        const companyFilters = [];
+        
+        // Base filter for all searches
+        companyFilters.push({
+          propertyName: 'createdate',
+          operator: 'GTE',
+          value: '0'
+        });
+
+        // Add filters based on search criteria
+        if (data.query) {
+          companyFilters.push({
+            propertyName: 'name',
+            operator: 'CONTAINS_TOKEN',
+            value: data.query
+          });
+        }
+
+        // Add name filter if provided
+        if (data.name) {
+          companyFilters.push({
+            propertyName: 'name',
+            operator: data.nameOperator || 'CONTAINS_TOKEN',
+            value: data.name
+          });
+        }
+
+        // Add domain filter if provided
+        if (data.domain) {
+          companyFilters.push({
+            propertyName: 'domain',
+            operator: data.domainOperator || 'EQ',
+            value: data.domain
+          });
+        }
+
+        // Add website filter if provided
+        if (data.website) {
+          companyFilters.push({
+            propertyName: 'website',
+            operator: data.websiteOperator || 'CONTAINS_TOKEN',
+            value: data.website
+          });
+        }
+
+        // Add industry filter if provided
+        if (data.industry) {
+          companyFilters.push({
+            propertyName: 'industry',
+            operator: data.industryOperator || 'CONTAINS_TOKEN',
+            value: data.industry
+          });
+        }
+
+        // Add city filter if provided
+        if (data.city) {
+          companyFilters.push({
+            propertyName: 'city',
+            operator: data.cityOperator || 'CONTAINS_TOKEN',
+            value: data.city
+          });
+        }
+
+        // Add country filter if provided
+        if (data.country) {
+          companyFilters.push({
+            propertyName: 'country',
+            operator: data.countryOperator || 'EQ',
+            value: data.country
+          });
+        }
+
         body = {
           filterGroups: [{
-            filters: [{
-              propertyName: data.query ? 'name' : 'createdate',
-              operator: data.operator || (data.query ? 'EQ' : 'GTE'),
-              value: data.query || '0'
-            }]
+            filters: companyFilters
           }],
           properties: data.properties || ['name', 'domain', 'website', 'industry', 'city', 'country'],
           limit: data.limit || 10
-        };
-        break;
-
-      case 'getCompanyByDomain':
-        endpoint = '/objects/companies/search';
-        method = 'POST';
-        body = {
-          filterGroups: [{
-            filters: [{
-              propertyName: 'domain',
-              operator: 'EQ',
-              value: data.domain
-            }]
-          }],
-          properties: data.properties || ['name', 'domain', 'website', 'industry', 'city', 'country'],
-          limit: 1
         };
         break;
 
