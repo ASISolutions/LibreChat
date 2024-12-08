@@ -52,7 +52,7 @@ Important Notes:
 
     this.schema = z.object({
       operation: z.enum([
-        'getContact', 'createContact', 'updateContact', 'searchContacts', 'getContactByEmail',
+        'getContact', 'createContact', 'updateContact', 'searchContacts',
         'getCompany', 'createCompany', 'updateCompany', 'searchCompanies', 'getCompanyByDomain',
         'getDeal', 'createDeal', 'updateDeal', 'searchDeals', 'associateDeal',
         'getLineItem', 'createLineItem', 'updateLineItem', 'searchLineItems', 'associateLineItem',
@@ -116,6 +116,22 @@ Important Notes:
         dealName: z.string().optional().describe('Name to filter deals by'),
         dealNameOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
           .describe('Operator for dealname filter. Default: CONTAINS_TOKEN'),
+        // Contact search fields
+        email: z.string().optional().describe('Email to filter contacts by'),
+        operator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+          .describe('Operator for email filter. Default: EQ'),
+        firstName: z.string().optional().describe('First name to filter contacts by'),
+        firstNameOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+          .describe('Operator for firstName filter. Default: CONTAINS_TOKEN'),
+        lastName: z.string().optional().describe('Last name to filter contacts by'),
+        lastNameOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+          .describe('Operator for lastName filter. Default: CONTAINS_TOKEN'),
+        company: z.string().optional().describe('Company to filter contacts by'),
+        companyOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+          .describe('Operator for company filter. Default: CONTAINS_TOKEN'),
+        phone: z.string().optional().describe('Phone to filter contacts by'),
+        phoneOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+          .describe('Operator for phone filter. Default: EQ'),
       }).optional(),
     });
 
@@ -171,6 +187,11 @@ Important Notes:
           toObjectType: z.enum(['contacts', 'companies', 'deals', 'line_items']),
           toObjectId: z.string()
         }).strict()
+      }).strict(),
+
+      searchContacts: z.object({
+        operation: z.literal('searchContacts'),
+        data: z.object({}).strict()
       }).strict()
     };
   }
@@ -210,32 +231,77 @@ Important Notes:
       case 'searchContacts':
         endpoint = '/objects/contacts/search';
         method = 'POST';
+        
+        // Build filters array
+        const contactFilters = [];
+        
+        // Base filter for all searches
+        contactFilters.push({
+          propertyName: 'createdate',
+          operator: 'GTE',
+          value: '0'
+        });
+
+        // Add filters based on search criteria
+        if (data.query) {
+          contactFilters.push({
+            propertyName: 'email',
+            operator: 'CONTAINS_TOKEN',
+            value: data.query
+          });
+        }
+
+        // Add email filter if provided
+        if (data.email) {
+          contactFilters.push({
+            propertyName: 'email',
+            operator: data.operator || 'EQ',
+            value: data.email
+          });
+        }
+
+        // Add firstname filter if provided
+        if (data.firstName) {
+          contactFilters.push({
+            propertyName: 'firstname',
+            operator: data.firstNameOperator || 'CONTAINS_TOKEN',
+            value: data.firstName
+          });
+        }
+
+        // Add lastname filter if provided
+        if (data.lastName) {
+          contactFilters.push({
+            propertyName: 'lastname',
+            operator: data.lastNameOperator || 'CONTAINS_TOKEN',
+            value: data.lastName
+          });
+        }
+
+        // Add company filter if provided
+        if (data.company) {
+          contactFilters.push({
+            propertyName: 'company',
+            operator: data.companyOperator || 'CONTAINS_TOKEN',
+            value: data.company
+          });
+        }
+
+        // Add phone filter if provided
+        if (data.phone) {
+          contactFilters.push({
+            propertyName: 'phone',
+            operator: data.phoneOperator || 'EQ',
+            value: data.phone
+          });
+        }
+
         body = {
           filterGroups: [{
-            filters: [{
-              propertyName: data.query ? 'email' : 'createdate',
-              operator: data.operator || (data.query ? 'EQ' : 'GTE'),
-              value: data.query || '0'
-            }]
+            filters: contactFilters
           }],
           properties: data.properties || ['email', 'firstname', 'lastname', 'company', 'phone'],
           limit: data.limit || 10
-        };
-        break;
-
-      case 'getContactByEmail':
-        endpoint = '/objects/contacts/search';
-        method = 'POST';
-        body = {
-          filterGroups: [{
-            filters: [{
-              propertyName: 'email',
-              operator: 'EQ',
-              value: data.email
-            }]
-          }],
-          properties: data.properties || ['email', 'firstname', 'lastname', 'company', 'phone'],
-          limit: 1
         };
         break;
 
