@@ -30,39 +30,40 @@ class HubSpotTool extends Tool {
     this.kwargs = fields?.kwargs ?? {};
     this.description = 'A tool to interact with HubSpot CRM. Useful for managing contacts, deals, and companies.';
     
-    this.description_for_model = `This tool interacts with HubSpot CRM and supports the following key operations:
+    this.description_for_model = `This tool interacts with HubSpot CRM. The available operations are defined in the schema.
 
-1. Contacts: Create, update, search, and retrieve contact information
-2. Companies: Manage company records including creation, updates, and domain-based searches
-3. Deals: Handle deal pipeline management with creation, updates, and status tracking
-4. Line Items: Manage products/services associated with deals
-5. Associations: Create and manage relationships between different HubSpot objects
-6. Owners: Retrieve owner information based on email
+Key Information for Operations:
+
+Deal Stages:
+- "open" (includes qualifiedtobuy, maximise revenue potential, solution & commercial review)
+- "closed" (includes closedwon and closedlost)
+- "business initiative defined" (maps to appointmentscheduled)
+- "compelling client event" (maps to qualifiedtobuy)
+- "closed won" (maps to closedwon)
+- "closed lost" (maps to closedlost)
+- "solution & commercial review" (maps to 184746837)
+- "proposal complete" (maps to 184746838)
+- "maximise revenue potential" (maps to 184746840)
+
+Common Properties:
+- dealname: Name of the deal
+- pipeline: Pipeline the deal is in
+- dealstage: Current stage of the deal
+- amount: Monetary value of the deal
+- closedate: Expected close date
+- dealtype: Type of deal (newbusiness/existingbusiness)
+- hubspot_owner_id: HubSpot owner ID
+- createdate: When the deal was created
+- hs_lastmodifieddate: When the deal was last modified
+- hs_deal_stage_probability: Probability of winning
+- description: Deal description
 
 Important Notes:
-- If HubSpot Owner ID is not set, you must ask the user for it before performing operations that require it
-- The Owner ID will be stored in memory for subsequent operations
-- Owner ID must be a numeric value (e.g., "528910992")
-- Owner ID is required for many operations including creating/updating contacts, deals, and companies
-
-When retrieving line items for a deal:
-1. The response will include line item details that should be formatted as a markdown table
-2. Important columns to include: Name, Quantity, Price, Amount, SKU
-3. Format currency values with 2 decimal places and include currency symbol ($)
-4. Format the table with proper markdown syntax:
-   | Name | Quantity | Price | Amount | SKU |
-   |------|----------|-------|---------|-----|
-   | Item 1 | 2 | $99.99 | $199.98 | SKU123 |
-5. Include a summary row at the bottom with the total amount
-6. Add a message indicating the deal ID and total number of items
-
-Important Notes:
+- HubSpot Owner ID is REQUIRED for all operations (e.g., "528910992")
 - All monetary values should be formatted with 2 decimal places
 - Dates should be in ISO format (YYYY-MM-DD)
-- IDs must be provided for update operations
-- Email addresses must be valid format
 - Search operations support pagination with 'limit' and 'after' parameters
-- Association operations require both source and target object details`;
+- Default limit for search operations is 100 items`;
 
     this.schema = z.object({
       operation: z.enum([
@@ -75,100 +76,49 @@ Important Notes:
         'getPropertyDetails'
       ]),
       data: z.object({
-        // Contact fields
-        id: z.string().optional(),
-        email: z.string().email().optional(),
-        firstName: z.string().optional(),
-        lastName: z.string().optional(),
-        phone: z.string().optional(),
-        // Company fields
-        companyId: z.string().optional(),
-        name: z.string().optional(),
-        domain: z.string().optional(),
-        city: z.string().optional(),
-        country: z.string().optional(),
-        industry: z.string().optional(),
-        website: z.string().optional(),
-        description: z.string().optional(),
-        // Deal fields
-        dealId: z.string().describe('Required for createLineItem and updateDeal: The ID of the deal').optional(),
-        dealName: z.string().describe('Required for createDeal: The name of the deal').optional(),
-        pipeline: z.string().describe('Required for createDeal: The pipeline name (e.g. "default")').optional(),
-        stage: z.string().describe('Required for createDeal: The deal stage. Available stages:\n' +
-          '- "compelling client event" (maps to "qualifiedtobuy")\n' +
-          '- "closed won" (maps to "closedwon")\n' +
-          '- "closed lost" (maps to "closedlost")').optional(),
-        amount: z.number().describe('Required for createDeal: The monetary value of the deal').optional(),
-        closeDate: z.string().describe('Required for createDeal: The expected close date in YYYY-MM-DD format').optional(),
-        dealType: z.string().describe('Required for createDeal: The type of deal. Valid options: "newbusiness" or "existingbusiness"').optional(),
-        // Line Item fields
-        lineItemId: z.string().optional(),
-        sku: z.string().describe('Required for createLineItem: The SKU of the product/service').optional(),
-        quantity: z.number().describe('Required for createLineItem: The quantity of the product/service').optional(),
-        price: z.number().describe('Required for createLineItem: The price of the product/service').optional(),
-        // Association fields
-        fromObjectType: z.enum(['contacts', 'companies', 'deals', 'line_items']).optional(),
-        fromObjectId: z.string().optional(),
-        toObjectType: z.enum(['contacts', 'companies', 'deals', 'line_items']).optional(),
-        toObjectId: z.string().optional(),
-        associationType: z.string().optional(),
-        // Common fields
-        company: z.string().optional(),
+        // Common fields used across operations
         query: z.string().optional(),
         properties: z.array(z.string()).optional(),
         limit: z.number().optional(),
         after: z.string().optional(),
-        // Add owner-related fields
-        archived: z.boolean().optional(),
-        operator: z.enum(['EQ', 'NEQ', 'LT', 'LTE', 'GT', 'GTE', 'CONTAINS_TOKEN']).optional(),
-        // Add closedate search fields
-        closeDate: z.string().optional().describe('Date to filter deals by close date (format: YYYY-MM-DD)'),
-        closeDateOperator: z.enum(['EQ', 'NEQ', 'LT', 'LTE', 'GT', 'GTE']).optional()
-          .describe('Operator for closedate filter. Default: EQ'),
-        // Add deal stage filter
-        dealStage: z.string().optional().describe('Stage to filter deals by (e.g. "closedwon", "qualifiedtobuy")'),
-        // Add deal name filter
-        dealName: z.string().optional().describe('Name to filter deals by'),
-        dealNameOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
-          .describe('Operator for dealname filter. Default: CONTAINS_TOKEN'),
-        hubspotOwnerId: z.string().optional().describe('HubSpot owner ID to filter deals by'),
-        hubspotOwnerIdOperator: z.enum(['EQ', 'NEQ']).optional()
-          .describe('Operator for hubspot_owner_id filter. Default: EQ'),
-        // Contact search fields
-        email: z.string().optional().describe('Email to filter contacts by'),
-        operator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
-          .describe('Operator for email filter. Default: EQ'),
-        firstName: z.string().optional().describe('First name to filter contacts by'),
-        firstNameOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
-          .describe('Operator for firstName filter. Default: CONTAINS_TOKEN'),
-        lastName: z.string().optional().describe('Last name to filter contacts by'),
-        lastNameOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
-          .describe('Operator for lastName filter. Default: CONTAINS_TOKEN'),
-        company: z.string().optional().describe('Company to filter contacts by'),
-        companyOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
-          .describe('Operator for company filter. Default: CONTAINS_TOKEN'),
-        phone: z.string().optional().describe('Phone to filter contacts by'),
-        phoneOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
-          .describe('Operator for phone filter. Default: EQ'),
-        nameOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
-          .describe('Operator for name filter. Default: CONTAINS_TOKEN'),
-        domainOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
-          .describe('Operator for domain filter. Default: EQ'),
-        websiteOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
-          .describe('Operator for website filter. Default: CONTAINS_TOKEN'),
-        industryOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
-          .describe('Operator for industry filter. Default: CONTAINS_TOKEN'),
-        cityOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
-          .describe('Operator for city filter. Default: CONTAINS_TOKEN'),
-        countryOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
-          .describe('Operator for country filter. Default: EQ'),
-        objectType: z.enum(['deals', 'contacts', 'companies', 'line_items']).optional(),
-        propertyName: z.string().optional(),
-      }).optional(),
+        hubspotOwnerId: z.string().describe('HubSpot owner ID (required for all operations)')
+      }).passthrough()  // Allow additional properties based on operation
     });
 
-    // Define operation schemas
+    // Define operation schemas with detailed validation
     this.operationSchemas = {
+      searchDeals: z.object({
+        operation: z.literal('searchDeals'),
+        data: z.object({
+          query: z.string().optional().describe('General search query to filter deals by name'),
+          dealStage: z.string().optional().describe('Stage to filter deals by. Available options:\n' +
+            '- "open" (includes qualifiedtobuy, maximise revenue potential, solution & commercial review, etc)\n' +
+            '- "closed" (includes closedwon and closedlost)\n' +
+            '- "business initiative defined" (maps to appointmentscheduled)\n' +
+            '- "compelling client event" (maps to qualifiedtobuy)\n' +
+            '- "closed won" (maps to closedwon)\n' +
+            '- "closed lost" (maps to closedlost)\n' +
+            '- "solution & commercial review" (maps to 184746837)\n' +
+            '- "proposal complete" (maps to 184746838)\n' +
+            '- "maximise revenue potential" (maps to 184746840)'),
+          dealName: z.string().optional().describe('Name of the deal to search for'),
+          dealNameOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+            .describe('Operator for dealName filter. Default: CONTAINS_TOKEN'),
+          closeDate: z.string().optional().describe('Date to filter deals by close date (format: YYYY-MM-DD)'),
+          closeDateOperator: z.enum(['EQ', 'NEQ', 'LT', 'LTE', 'GT', 'GTE']).optional()
+            .describe('Operator for closeDate filter. Default: EQ'),
+          hubspotOwnerId: z.string().describe('HubSpot owner ID to filter deals by (required)'),
+          hubspotOwnerIdOperator: z.enum(['EQ', 'NEQ']).optional()
+            .describe('Operator for hubspotOwnerId filter. Default: EQ'),
+          properties: z.array(z.string()).optional()
+            .describe('Array of deal properties to return. Default: ["dealname", "pipeline", "dealstage", "amount", "closedate", "dealtype", "hubspot_owner_id"]'),
+          limit: z.number().optional()
+            .describe('Maximum number of deals to return. Default: 100'),
+          after: z.string().optional()
+            .describe('Pagination token for getting next page of results')
+        }).strict()
+      }).strict(),
+
       createLineItem: z.object({
         operation: z.literal('createLineItem'),
         data: z.object({
@@ -223,12 +173,41 @@ Important Notes:
 
       searchContacts: z.object({
         operation: z.literal('searchContacts'),
-        data: z.object({}).strict()
+        data: z.object({
+          email: z.string().optional().describe('Email to filter contacts by'),
+          operator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+            .describe('Operator for email filter. Default: EQ'),
+          firstName: z.string().optional().describe('First name to filter contacts by'),
+          firstNameOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+            .describe('Operator for firstName filter. Default: CONTAINS_TOKEN'),
+          lastName: z.string().optional().describe('Last name to filter contacts by'),
+          lastNameOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+            .describe('Operator for lastName filter. Default: CONTAINS_TOKEN'),
+          company: z.string().optional().describe('Company to filter contacts by'),
+          companyOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+            .describe('Operator for company filter. Default: CONTAINS_TOKEN'),
+          phone: z.string().optional().describe('Phone to filter contacts by'),
+          phoneOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+            .describe('Operator for phone filter. Default: EQ'),
+          properties: z.array(z.string()).optional(),
+          limit: z.number().optional(),
+          after: z.string().optional()
+        }).strict()
       }).strict(),
 
       searchCompanies: z.object({
         operation: z.literal('searchCompanies'),
-        data: z.object({}).strict()
+        data: z.object({
+          name: z.string().optional().describe('Company name to filter by'),
+          nameOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+            .describe('Operator for name filter. Default: CONTAINS_TOKEN'),
+          domain: z.string().optional().describe('Domain to filter by'),
+          domainOperator: z.enum(['EQ', 'NEQ', 'CONTAINS_TOKEN']).optional()
+            .describe('Operator for domain filter. Default: EQ'),
+          properties: z.array(z.string()).optional(),
+          limit: z.number().optional(),
+          after: z.string().optional()
+        }).strict()
       }).strict(),
 
       getPropertyDetails: z.object({
@@ -270,38 +249,21 @@ Important Notes:
   }
 
   async _call(input) {
+    // Check for hubspotOwnerId first
+    if (!input.data?.hubspotOwnerId) {
+      throw new Error('HubSpot Owner ID is required. Please provide your HubSpot Owner ID to proceed.');
+    }
+
+    // If hubspotOwnerId is provided, validate it's numeric
+    if (!/^\d+$/.test(input.data.hubspotOwnerId)) {
+      throw new Error('HubSpot Owner ID must be a numeric value (e.g., "528910992")');
+    }
+
+    // Store owner ID for future use
+    this.storedOwnerId = input.data.hubspotOwnerId;
+
+    // Continue with the rest of the validation and operation
     try {
-      // If hubspotOwnerId is provided in the input, store it
-      if (input.data?.hubspotOwnerId) {
-        if (!/^\d+$/.test(input.data.hubspotOwnerId)) {
-          throw new Error('HubSpot Owner ID must be a numeric value');
-        }
-        this.storedOwnerId = input.data.hubspotOwnerId;
-      }
-
-      // For operations that require owner ID, ensure we have it
-      const operationsRequiringOwnerId = [
-        'createContact',
-        'createDeal',
-        'updateContact',
-        'updateDeal',
-        'createCompany',
-        'updateCompany'
-      ];
-
-      if (operationsRequiringOwnerId.includes(input.operation)) {
-        try {
-          const ownerId = await this.getOwnerId();
-          // Add owner ID to the input data if not already present
-          if (!input.data.hubspotOwnerId) {
-            input.data.hubspotOwnerId = ownerId;
-          }
-        } catch (error) {
-          // Propagate the error message asking for owner ID
-          throw error;
-        }
-      }
-
       // Validate specific operations
       if (input.operation === 'createLineItem' || input.operation === 'createDeal' || 
           input.operation === 'getDealLineItems' || input.operation === 'updateDeal' || 
@@ -397,7 +359,7 @@ Important Notes:
               filters: contactFilters
             }],
             properties: data.properties || ['email', 'firstname', 'lastname', 'company', 'phone'],
-            limit: data.limit || 10
+            limit: data.limit || 100
           };
           break;
 
@@ -525,7 +487,7 @@ Important Notes:
               filters: companyFilters
             }],
             properties: data.properties || ['name', 'domain', 'website', 'industry', 'city', 'country'],
-            limit: data.limit || 10
+            limit: data.limit || 100
           };
           break;
 
@@ -657,7 +619,7 @@ Important Notes:
               filters
             }],
             properties: data.properties || ['dealname', 'pipeline', 'dealstage', 'amount', 'closedate', 'dealtype', 'hubspot_owner_id'],
-            limit: data.limit || 10
+            limit: data.limit || 100
           };
           break;
 
