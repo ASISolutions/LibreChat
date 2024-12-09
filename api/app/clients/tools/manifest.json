@@ -13,6 +13,19 @@
     ]
   },
   {
+    "name": "HubSpot",
+    "pluginKey": "hubspot",
+    "description": "Use HubSpot CRM to manage contacts, deals, and companies.",
+    "icon": "https://www.hubspot.com/hubfs/HubSpot_Logos/HubSpot-Inversed-Favicon.png",
+    "authConfig": [
+      {
+        "authField": "HUBSPOT_API_KEY",
+        "label": "HubSpot API Key",
+        "description": "You need to provide your HubSpot API Key. Get your API key from your HubSpot account settings."
+      }
+    ]
+  },
+  {
     "name": "Google",
     "pluginKey": "google",
     "description": "Use Google Search to find information about the weather, news, sports, and more.",
