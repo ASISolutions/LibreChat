@@ -34,6 +34,12 @@ class HubSpotTool extends Tool {
 
 Key Information for Operations:
 
+Deal Operations:
+- To get a specific deal, use getDeal operation with the deal's ID:
+  * Required: dealId (e.g., "20643757389"), hubspotOwnerId
+  * Optional: properties (array of property names to return)
+  * Example: { operation: 'getDeal', data: { dealId: "20643757389", hubspotOwnerId: "528910992" } }
+
 Deal Stages:
 - "open" (includes qualifiedtobuy, maximise revenue potential, solution & commercial review)
 - "closed" (includes closedwon and closedlost)
@@ -116,6 +122,14 @@ Important Notes:
             .describe('Maximum number of deals to return. Default: 100'),
           after: z.string().optional()
             .describe('Pagination token for getting next page of results')
+        }).strict()
+      }).strict(),
+
+      getDeal: z.object({
+        operation: z.literal('getDeal'),
+        data: z.object({
+          dealId: z.string().describe('The ID of the deal to retrieve (required)'),
+          hubspotOwnerId: z.string().describe('HubSpot owner ID (required)')
         }).strict()
       }).strict(),
 
@@ -624,13 +638,10 @@ Important Notes:
           break;
 
         case 'getDeal':
-          if (!data?.dealId) {
+          if (!data?.query) {
             throw new Error('Deal ID is required for getting a deal');
           }
-          endpoint = `/objects/deals/${data.dealId}`;
-          if (data.properties) {
-            queryParams.append('properties', data.properties.join(','));
-          }
+          endpoint = `/objects/deals/${data.query}`;
           break;
 
         case 'createDeal':
