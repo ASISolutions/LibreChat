@@ -372,7 +372,6 @@ Important Notes:
             filterGroups: [{
               filters: contactFilters
             }],
-            properties: data.properties || ['email', 'firstname', 'lastname', 'company', 'phone'],
             limit: data.limit || 100
           };
           break;
@@ -500,7 +499,6 @@ Important Notes:
             filterGroups: [{
               filters: companyFilters
             }],
-            properties: data.properties || ['name', 'domain', 'website', 'industry', 'city', 'country'],
             limit: data.limit || 100
           };
           break;
@@ -632,7 +630,6 @@ Important Notes:
             filterGroups: [{
               filters
             }],
-            properties: data.properties || ['dealname', 'pipeline', 'dealstage', 'amount', 'closedate', 'dealtype', 'hubspot_owner_id'],
             limit: data.limit || 100
           };
           break;
