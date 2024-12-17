@@ -9,6 +9,7 @@ const GoogleSearchAPI = require('./structured/GoogleSearch');
 const TraversaalSearch = require('./structured/TraversaalSearch');
 const TavilySearchResults = require('./structured/TavilySearchResults');
 const HubSpotTool = require('./structured/HubSpot');
+const LlamaRetrievalTool = require('./structured/LlamaRetrieval');
 
 module.exports = {
   availableTools,
@@ -21,4 +22,5 @@ module.exports = {
   StructuredWolfram,
   TavilySearchResults,
   HubSpotTool,
+  LlamaRetrievalTool,
 };

@@ -13,6 +13,19 @@
     ]
   },
   {
+    "name": "LlamaRetrieval",
+    "pluginKey": "llamaretrieval",
+    "description": "LlamaRetrieval is a tool that allows you to retrieve information from your LlamaIndex knowledge base.",
+    "icon": "https://i.imgur.com/R8B1eGu.jpeg",
+    "authConfig": [
+      {
+        "authField": "LLAMA_CLOUD_API_KEY",
+        "label": "LlamaCloud API Key",
+        "description": "You need to provide your LlamaCloud API Key to access your knowledge base."
+      }
+    ]
+  },
+  {
     "name": "HubSpot",
     "pluginKey": "hubspot",
     "description": "Use HubSpot CRM to manage contacts, deals, and companies.",

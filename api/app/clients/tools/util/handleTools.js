@@ -15,6 +15,7 @@ const {
   StructuredWolfram,
   TavilySearchResults,
   HubSpotTool,
+  LlamaRetrievalTool,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -162,6 +163,7 @@ const loadTools = async ({
     traversaal_search: TraversaalSearch,
     tavily_search_results_json: TavilySearchResults,
     hubspot: HubSpotTool,
+    llamaretrieval: LlamaRetrievalTool,
   };
 
   const customConstructors = {
@@ -197,6 +199,18 @@ const loadTools = async ({
     serpapi: { location: 'Austin,Texas,United States', hl: 'en', gl: 'us' },
     dalle: imageGenOptions,
     'stable-diffusion': imageGenOptions,
+    llamaparse: {
+      isAgent: true,
+      req: options.req,
+      fileStrategy: options.fileStrategy,
+      processFileURL: options.processFileURL,
+      returnMetadata: options.returnMetadata
+    },
+    llamaretrieval: {
+      isAgent: true,
+      req: options.req,
+      returnMetadata: options.returnMetadata
+    }
   };
 
   const toolAuthFields = {};
